@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DiD 客户洞察仪表盘 | Dialogue in the Dark</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background-color: #0f0a05;
+            color: #fef3e2;
+        }
+        
+        .glass-panel {
+            background: rgba(20, 15, 10, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 140, 0, 0.15);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+        }
+        
+        .neon-glow {
+            box-shadow: 0 0 30px rgba(255, 140, 0, 0.2);
+        }
+        
+        .chart-container {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #ff9500 0%, #ffb700 50%, #ff6b00 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, rgba(40, 25, 10, 0.8) 0%, rgba(20, 15, 10, 0.6) 100%);
+            border: 1px solid rgba(255, 140, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 140, 0, 0.4);
+            box-shadow: 0 8px 32px rgba(255, 140, 0, 0.15);
+        }
+        
+        /* Photo Gallery Styles */
+        .photo-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .photo-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(255, 140, 0, 0.2);
+        }
+        
+        .photo-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: all 0.5s ease;
+            filter: grayscale(100%) contrast(1.1) brightness(0.9);
+        }
+        
+        .photo-card:hover img {
+            filter: grayscale(0%) contrast(1) brightness(1);
+            transform: scale(1.05);
+        }
+        
+        .photo-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+        
+        .photo-card:hover .photo-overlay {
+            opacity: 0.3;
+        }
+        
+        .photo-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            transform: translateY(10px);
+            transition: transform 0.3s;
+        }
+        
+        .photo-card:hover .photo-info {
+            transform: translateY(0);
+        }
+        
+        /* Lightbox Styles */
+        .lightbox {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(20px);
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .lightbox.active {
+            display: flex;
+            opacity: 1;
+        }
+        
+        .lightbox-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .lightbox-img {
+            max-width: 90%;
+            max-height: 85vh;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+        }
+        
+        .lightbox-close {
+            position: absolute;
+            top: 30px;
+            right: 40px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255, 140, 0, 0.2);
+            border: 1px solid rgba(255, 140, 0, 0.3);
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .lightbox-close:hover {
+            background: rgba(255, 140, 0, 0.4);
+            transform: rotate(90deg);
+        }
+        
+        .lightbox-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 140, 0, 0.2);
+            border: 1px solid rgba(255, 140, 0, 0.3);
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .lightbox-nav:hover {
+            background: rgba(255, 140, 0, 0.4);
+        }
+        
+        .lightbox-prev { left: 40px; }
+        .lightbox-next { right: 40px; }
+        
+        .lightbox-counter {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ff8c00;
+            font-size: 14px;
+            letter-spacing: 2px;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #0f0a05;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #4a3728;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b4d3a;
+        }
+        
+        .matrix-grid {
+            background-image: 
+                linear-gradient(rgba(255, 140, 0, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 140, 0, 0.08) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+        
+        .logo-container {
+            filter: drop-shadow(0 0 20px rgba(255, 140, 0, 0.3));
+        }
+    </style>
+</head>
+<body class="min-h-screen overflow-x-hidden">
+
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-50 glass-panel border-b border-orange-500/20">
+        <div class="max-w-[1920px] mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-6">
+                <!-- DiD Logo -->
+                <div class="logo-container h-12 w-auto flex items-center">
+                    <img src="logo.png" alt="DiD Logo" class="h-full w-auto object-contain">
+                </div>
+                <div class="h-8 w-px bg-orange-500/30"></div>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight text-white">
+                        客户洞察<span class="gradient-text">仪表盘</span>
+                    </h1>
+                    <p class="text-xs text-orange-200/60 mt-0.5">Customer Analytics Dashboard</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-6">
+                <div class="text-right hidden md:block">
+                    <p class="text-xs text-orange-200/40 uppercase tracking-wider">数据更新时间</p>
+                    <p class="text-sm font-mono text-orange-400">2024-02-22 14:30</p>
+                </div>
+                <button onclick="resetDashboard()" class="px-4 py-2 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-sm font-medium transition-all shadow-lg shadow-orange-900/50">
+                    重置视图
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="pt-28 pb-8 px-6 max-w-[1920px] mx-auto">
+        
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="metric-card rounded-xl p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <p class="text-sm text-orange-200/60 mb-1">总客户数</p>
+                        <h3 class="text-3xl font-bold text-white" id="totalCustomers">154</h3>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 text-sm">
+                    <span class="text-amber-400 font-medium">↑ 12.5%</span>
+                    <span class="text-orange-200/40">较上季度</span>
+                </div>
+            </div>
+
+            <div class="metric-card rounded-xl p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <p class="text-sm text-orange-200/60 mb-1">复购率</p>
+                        <h3 class="text-3xl font-bold text-white" id="repurchaseRate">74.03%</h3>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 text-sm">
+                    <span class="text-amber-400 font-medium">114 客户</span>
+                    <span class="text-orange-200/40">有重复购买</span>
+                </div>
+            </div>
+
+            <div class="metric-card rounded-xl p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <p class="text-sm text-orange-200/60 mb-1">主要行业</p>
+                        <h3 class="text-3xl font-bold text-white">科技</h3>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-600 to-red-500 flex items-center justify-center shadow-lg shadow-orange-600/30">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 text-sm">
+                    <span class="text-orange-400 font-medium">22.73%</span>
+                    <span class="text-orange-200/40">占比最高</span>
+                </div>
+            </div>
+
+            <div class="metric-card rounded-xl p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <p class="text-sm text-orange-200/60 mb-1">推荐客户占比</p>
+                        <h3 class="text-3xl font-bold text-white">22.08%</h3>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center shadow-lg shadow-yellow-500/30">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 text-sm">
+                    <span class="text-yellow-400 font-medium">34 客户</span>
+                    <span class="text-orange-200/40">通过推荐获取</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            
+            <!-- Customer Type Distribution -->
+            <div class="glass-panel rounded-xl p-6 chart-container">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-white">客户类型分布</h3>
+                    <span class="text-xs text-orange-400">私营企业占主导</span>
+                </div>
+                <div id="chartCustomerType" class="w-full h-80"></div>
+            </div>
+
+            <!-- Company Size Distribution -->
+            <div class="glass-panel rounded-xl p-6 chart-container">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-white">公司规模分布</h3>
+                    <span class="text-xs text-orange-200/60">按员工数量</span>
+                </div>
+                <div id="chartCompanySize" class="w-full h-80"></div>
+            </div>
+
+            <!-- Industry Distribution -->
+            <div class="glass-panel rounded-xl p-6 chart-container">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-white">行业分布 Top 10</h3>
+                    <span class="text-xs text-amber-400">科技行业领先</span>
+                </div>
+                <div id="chartIndustry" class="w-full h-80"></div>
+            </div>
+
+            <!-- Referral Sources - Nightingale Rose Chart -->
+            <div class="glass-panel rounded-xl p-6 chart-container">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-white">客户推荐来源</h3>
+                    <span class="text-xs text-orange-400">玫瑰图展示</span>
+                </div>
+                <div id="chartReferral" class="w-full h-80"></div>
+            </div>
+        </div>
+
+        <!-- Program Types & Clustering -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            
+            <!-- Program Types -->
+            <div class="glass-panel rounded-xl p-6 chart-container">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-white">购买项目类型</h3>
+                </div>
+                <div id="chartPrograms" class="w-full h-96"></div>
+            </div>
+
+            <!-- Customer Clustering Matrix -->
+            <div class="glass-panel rounded-xl p-6 chart-container lg:col-span-2">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">客户聚类矩阵</h3>
+                        <p class="text-xs text-orange-200/60 mt-1">X轴: 产品类型 | Y轴: 产品多样性</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="switchMatrix('enterprise')" class="matrix-tab active px-3 py-1 rounded text-xs bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-lg shadow-orange-900/50">企业类型</button>
+                        <button onclick="switchMatrix('size')" class="matrix-tab px-3 py-1 rounded text-xs bg-white/5 text-orange-200/60 hover:bg-white/10 border border-orange-500/20">公司规模</button>
+                        <button onclick="switchMatrix('industry')" class="matrix-tab px-3 py-1 rounded text-xs bg-white/5 text-orange-200/60 hover:bg-white/10 border border-orange-500/20">行业</button>
+                    </div>
+                </div>
+                <div id="chartMatrix" class="w-full h-96 matrix-grid rounded-lg"></div>
+            </div>
+        </div>
+
+        <!-- Featured Activities Section -->
+        <div class="glass-panel rounded-xl p-6 mb-6">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                        <span class="w-1 h-6 bg-gradient-to-b from-orange-500 to-amber-500 rounded-full"></span>
+                        精选活动瞬间
+                    </h3>
+                    <p class="text-sm text-orange-200/60 mt-1">点击照片查看全屏画廊，悬停显示原彩</p>
+                </div>
+                <button onclick="openLightbox(0)" class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-orange-500/30 text-orange-400 text-sm transition-all">
+                    查看全部 →
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <!-- Photo 1 -->
+                <div class="photo-card aspect-[4/3]" onclick="openLightbox(0)">
+                    <img src="images/2025concert.jpg" alt="大湾区黑暗音乐会">
+                    <div class="photo-overlay"></div>
+                    <div class="photo-info">
+                        <p class="text-white font-medium text-sm">大湾区黑暗音乐会</p>
+                        <p class="text-orange-200/60 text-xs mt-1">2025 · GEMBA</p>
+                    </div>
+                </div>
+                
+                <!-- Photo 2 -->
+                <div class="photo-card aspect-[4/3]" onclick="openLightbox(1)">
+                    <img src="images/ByteDance_workshop.jpg" alt="字节跳动工作坊">
+                    <div class="photo-overlay"></div>
+                    <div class="photo-info">
+                        <p class="text-white font-medium text-sm">字节跳动工作坊</p>
+                        <p class="text-orange-200/60 text-xs mt-1">领导力培训</p>
+                    </div>
+                </div>
+                
+                <!-- Photo 3 -->
+                <div class="photo-card aspect-[4/3]" onclick="openLightbox(2)">
+                    <img src="images/deerma.jpg" alt="德尔玛团队建设">
+                    <div class="photo-overlay"></div>
+                    <div class="photo-info">
+                        <p class="text-white font-medium text-sm">德尔玛团队建设</p>
+                        <p class="text-orange-200/60 text-xs mt-1">2025管理精英</p>
+                    </div>
+                </div>
+                
+                <!-- Photo 4 -->
+                <div class="photo-card aspect-[4/3]" onclick="openLightbox(3)">
+                    <img src="images/EMBA_mission.jpg" alt="长江商学院EMBA">
+                    <div class="photo-overlay"></div>
+                    <div class="photo-info">
+                        <p class="text-white font-medium text-sm">长江商学院EMBA</p>
+                        <p class="text-orange-200/60 text-xs mt-1">深圳站公益行</p>
+                    </div>
+                </div>
+                
+                <!-- Photo 5 -->
+                <div class="photo-card aspect-[4/3]" onclick="openLightbox(4)">
+                    <img src="images/EO_mission.jpg" alt="EO企业家组织">
+                    <div class="photo-overlay"></div>
+                    <div class="photo-info">
+                        <p class="text-white font-medium text-sm">EO企业家组织</p>
+                        <p class="text-orange-200/60 text-xs mt-1">深圳分会活动</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Insights -->
+        <div class="glass-panel rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <span class="w-1 h-6 bg-gradient-to-b from-orange-500 to-amber-500 rounded-full"></span>
+                关键洞察与建议
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="space-y-3 p-4 rounded-lg bg-orange-950/30 border border-orange-500/10">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
+                            <span class="text-white font-bold text-sm">1</span>
+                        </div>
+                        <h4 class="font-medium text-white">高复购率优势</h4>
+                    </div>
+                    <p class="text-sm text-orange-200/60 leading-relaxed">
+                        74.03% 的复购率表明产品市场契合度极高。建议针对这114个复购客户设计推荐奖励计划，将满意度转化为新客获取。
+                    </p>
+                </div>
+                
+                <div class="space-y-3 p-4 rounded-lg bg-orange-950/30 border border-orange-500/10">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                            <span class="text-white font-bold text-sm">2</span>
+                        </div>
+                        <h4 class="font-medium text-white">大型企业聚焦</h4>
+                    </div>
+                    <p class="text-sm text-orange-200/60 leading-relaxed">
+                        超大型和大型企业占比 74.7%，且更偏好领导力工作坊。建议开发针对高管层的高级定制项目，提升客单价。
+                    </p>
+                </div>
+                
+                <div class="space-y-3 p-4 rounded-lg bg-orange-950/30 border border-orange-500/10">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-600 to-red-500 flex items-center justify-center shadow-lg shadow-orange-600/20">
+                            <span class="text-white font-bold text-sm">3</span>
+                        </div>
+                        <h4 class="font-medium text-white">实验性产品机会</h4>
+                    </div>
+                    <p class="text-sm text-orange-200/60 leading-relaxed">
+                        仅 9 个客户尝试过 Dine/Concert/Run-in-the-Dark 等创新产品。教育机构和外企对此接受度更高（43.8% 和 17.4%），可作为突破口。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Lightbox Gallery -->
+    <div id="lightbox" class="lightbox" onclick="closeLightboxOnBackground(event)">
+        <div class="lightbox-content">
+            <button class="lightbox-close" onclick="closeLightbox()">×</button>
+            <button class="lightbox-nav lightbox-prev" onclick="changePhoto(-1)">‹</button>
+            <button class="lightbox-nav lightbox-next" onclick="changePhoto(1)">›</button>
+            <img id="lightbox-img" class="lightbox-img" src="" alt="">
+            <div class="lightbox-counter">
+                <span id="current-index">1</span> / <span id="total-count">5</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Photo data
+        const photos = [
+            { src: 'images/2025concert.jpg', title: '大湾区黑暗音乐会', subtitle: '2025 · GEMBA · 深圳' },
+            { src: 'images/ByteDance_workshop.jpg', title: '字节跳动工作坊', subtitle: '领导力培训 · 内部专场' },
+            { src: 'images/deerma.jpg', title: '德尔玛团队建设', subtitle: '2025管理精英徒步越野挑战' },
+            { src: 'images/EMBA_mission.jpg', title: '长江商学院EMBA', subtitle: '深圳站公益行 · EMBA435' },
+            { src: 'images/EO_mission.jpg', title: 'EO企业家组织', subtitle: '深圳分会 · 企业家对话' }
+        ];
+        
+        let currentPhotoIndex = 0;
+
+        // Data
+        const data = {
+            customerTypes: [
+                { name: '私营企业', value: 67, pct: 43.51 },
+                { name: '国有企业', value: 38, pct: 24.68 },
+                { name: '外资企业', value: 29, pct: 18.83 },
+                { name: '机构/NGO', value: 14, pct: 9.09 },
+                { name: '中外合资', value: 4, pct: 2.60 }
+            ],
+            companySizes: [
+                { name: '超大型\n>4999人', value: 63, pct: 40.91 },
+                { name: '中型\n100-999人', value: 52, pct: 33.77 },
+                { name: '大型\n1000-4999人', value: 31, pct: 20.13 },
+                { name: '小型\n<100人', value: 8, pct: 5.19 }
+            ],
+            industries: [
+                { name: '科技', value: 35, pct: 22.73 },
+                { name: '金融', value: 19, pct: 12.34 },
+                { name: '制造/电子', value: 16, pct: 10.39 },
+                { name: '房地产', value: 15, pct: 9.74 },
+                { name: '教育/培训', value: 15, pct: 9.74 },
+                { name: '零售/电商', value: 14, pct: 9.09 },
+                { name: '专业服务', value: 10, pct: 6.49 },
+                { name: '物流/交通', value: 7, pct: 4.55 },
+                { name: '医疗/生命科学', value: 5, pct: 3.25 },
+                { name: '时尚/服装', value: 4, pct: 2.60 }
+            ],
+            referrals: [
+                { name: '无推荐记录', value: 120, pct: 77.92 },
+                { name: '渠道推荐', value: 13, pct: 8.44 },
+                { name: '利益相关者', value: 10, pct: 6.49 },
+                { name: 'BD开发', value: 7, pct: 4.55 },
+                { name: '2C客户', value: 2, pct: 1.30 },
+                { name: '2B客户', value: 2, pct: 1.30 }
+            ],
+            programs: [
+                { name: '标准团队建设', value: 80, pct: 54.48, type: 'standard' },
+                { name: '领导力工作坊', value: 50, pct: 34.01, type: 'leadership' },
+                { name: 'Dine-in-the-Dark', value: 3, pct: 2.04, type: 'experimental' },
+                { name: 'Concert-in-the-Dark', value: 2, pct: 1.36, type: 'experimental' },
+                { name: 'Run-in-the-Dark', value: 2, pct: 1.36, type: 'experimental' },
+                { name: 'Journey-in-the-Dark', value: 2, pct: 1.36, type: 'experimental' }
+            ],
+            matrix: {
+                enterprise: [
+                    { name: '大型私营企业', x: 70, y: 50, size: 62, leadership: 60, examples: ['Huawei', 'ByteDance'] },
+                    { name: '国有企业', x: 75, y: 50, size: 46, leadership: 67, examples: ['China Resources'] },
+                    { name: '外资企业', x: 30, y: 80, size: 23, experimental: 17.4, examples: ['Porsche', 'Amazon'] },
+                    { name: '教育/NGO', x: 25, y: 85, size: 16, experimental: 43.8, examples: ['CKGSB'] },
+                    { name: '中小企业', x: 20, y: 20, size: 46, simple: 72, examples: ['Lark Team'] }
+                ],
+                size: [
+                    { name: '超大型>4999', x: 70, y: 50, size: 69, leadership: 68, examples: ['Huawei', 'OPPO'] },
+                    { name: '大型1000-4999', x: 30, y: 50, size: 39, standard: 76, examples: ['CITIC'] },
+                    { name: '中型100-999', x: 35, y: 35, size: 38, mixed: true, examples: ['Chenyu'] },
+                    { name: '小型<100', x: 20, y: 15, size: 8, simple: 100, examples: ['Liangxin'] }
+                ],
+                industry: [
+                    { name: '科技', x: 65, y: 50, size: 38, leadership: 63, examples: ['Huawei'] },
+                    { name: '金融', x: 80, y: 50, size: 23, leadership: 78, examples: ['CMB'] },
+                    { name: '房地产', x: 85, y: 50, size: 18, leadership: 83, examples: ['Vanke'] },
+                    { name: '教育', x: 25, y: 80, size: 16, experimental: 44, examples: ['CKGSB'] }
+                ]
+            }
+        };
+
+        // Enhanced Color Palette with grays and corals
+        const customerTypeColors = [
+            { start: '#ff8c00', end: '#ff6b00' },      // 私营企业 - 深橙
+            { start: '#ff7f7f', end: '#ff6b6b' },      // 国有企业 - 珊瑚红
+            { start: '#ffb347', end: '#ff8c00' },      // 外资企业 - 浅橘
+            { start: '#a0a0a0', end: '#808080' },      // 机构/NGO - 灰色
+            { start: '#ffd4a3', end: '#ffb347' }       // 中外合资 - 杏色
+        ];
+
+        const referralColors = [
+            { color: '#6b7280' },                      // 无推荐记录 - 灰色
+            { color: '#ff8c00' },                      // 渠道推荐 - 橙
+            { color: '#ffb347' },                      // 利益相关者 - 浅橘
+            { color: '#ff7f7f' },                      // BD开发 - 珊瑚
+            { color: '#ffd4a3' },                      // 2C客户 - 杏色
+            { color: '#ff9500' }                       // 2B客户 - 金橙
+        ];
+
+        // Chart instances
+        let charts = {};
+        let currentMatrix = 'enterprise';
+
+        // Lightbox Functions
+        function openLightbox(index) {
+            currentPhotoIndex = index;
+            const lightbox = document.getElementById('lightbox');
+            const img = document.getElementById('lightbox-img');
+            const currentSpan = document.getElementById('current-index');
+            const totalSpan = document.getElementById('total-count');
+            
+            img.src = photos[index].src;
+            currentSpan.textContent = index + 1;
+            totalSpan.textContent = photos.length;
+            
+            lightbox.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            const lightbox = document.getElementById('lightbox');
+            lightbox.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        function closeLightboxOnBackground(event) {
+            if (event.target === event.currentTarget) {
+                closeLightbox();
+            }
+        }
+
+        function changePhoto(direction) {
+            currentPhotoIndex += direction;
+            
+            if (currentPhotoIndex < 0) {
+                currentPhotoIndex = photos.length - 1;
+            } else if (currentPhotoIndex >= photos.length) {
+                currentPhotoIndex = 0;
+            }
+            
+            const img = document.getElementById('lightbox-img');
+            const currentSpan = document.getElementById('current-index');
+            
+            img.style.opacity = '0';
+            setTimeout(() => {
+                img.src = photos[currentPhotoIndex].src;
+                currentSpan.textContent = currentPhotoIndex + 1;
+                img.style.opacity = '1';
+            }, 200);
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            const lightbox = document.getElementById('lightbox');
+            if (!lightbox.classList.contains('active')) return;
+            
+            if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowLeft') changePhoto(-1);
+            if (e.key === 'ArrowRight') changePhoto(1);
+        });
+
+        // Initialize all charts
+        function initCharts() {
+            // Customer Type Pie Chart
+            charts.customerType = echarts.init(document.getElementById('chartCustomerType'));
+            charts.customerType.setOption({
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c} ({d}%)',
+                    backgroundColor: 'rgba(20, 15, 10, 0.95)',
+                    borderColor: '#ff8c00',
+                    textStyle: { color: '#fff' }
+                },
+                legend: {
+                    orient: 'vertical',
+                    right: 10,
+                    top: 'center',
+                    textStyle: { color: '#fdba74' }
+                },
+                series: [{
+                    type: 'pie',
+                    radius: ['40%', '70%'],
+                    center: ['40%', '50%'],
+                    avoidLabelOverlap: false,
+                    itemStyle: {
+                        borderRadius: 10,
+                        borderColor: '#0f0a05',
+                        borderWidth: 2
+                    },
+                    label: { show: false },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: 14,
+                            fontWeight: 'bold',
+                            color: '#fff'
+                        }
+                    },
+                    data: data.customerTypes.map((item, idx) => ({
+                        ...item,
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: customerTypeColors[idx].start },
+                                { offset: 1, color: customerTypeColors[idx].end }
+                            ])
+                        }
+                    }))
+                }]
+            });
+
+            // Company Size Bar Chart
+            charts.companySize = echarts.init(document.getElementById('chartCompanySize'));
+            charts.companySize.setOption({
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    backgroundColor: 'rgba(20, 15, 10, 0.95)',
+                    borderColor: '#ff8c00',
+                    textStyle: { color: '#fff' }
+                },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    data: data.companySizes.map(i => i.name.replace('\n', ' ')),
+                    axisLine: { lineStyle: { color: '#4a3728' } },
+                    axisLabel: { color: '#fdba74', fontSize: 11 }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: { show: false },
+                    splitLine: { lineStyle: { color: '#2a1f15' } },
+                    axisLabel: { color: '#9ca3af' }
+                },
+                series: [{
+                    type: 'bar',
+                    data: data.companySizes.map((item, idx) => ({
+                        value: item.value,
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: ['#ff8c00', '#ffb700', '#ff7f7f', '#a0a0a0'][idx] },
+                                { offset: 1, color: ['#ff6b00', '#ff8c00', '#ff6b6b', '#808080'][idx] }
+                            ]),
+                            borderRadius: [6, 6, 0, 0]
+                        }
+                    })),
+                    label: {
+                        show: true,
+                        position: 'top',
+                        formatter: '{c}',
+                        color: '#fff'
+                    }
+                }]
+            });
+
+            // Industry Horizontal Bar
+            charts.industry = echarts.init(document.getElementById('chartIndustry'));
+            charts.industry.setOption({
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(20, 15, 10, 0.95)',
+                    borderColor: '#ff8c00',
+                    textStyle: { color: '#fff' }
+                },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: {
+                    type: 'value',
+                    axisLine: { show: false },
+                    splitLine: { lineStyle: { color: '#2a1f15' } },
+                    axisLabel: { color: '#9ca3af' }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: data.industries.map(i => i.name).reverse(),
+                    axisLine: { lineStyle: { color: '#4a3728' } },
+                    axisLabel: { color: '#fdba74' }
+                },
+                series: [{
+                    type: 'bar',
+                    data: data.industries.map(item => item.value).reverse(),
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                            { offset: 0, color: '#ff8c00' },
+                            { offset: 1, color: '#ffb700' }
+                        ]),
+                        borderRadius: [0, 6, 6, 0]
+                    },
+                    label: {
+                        show: true,
+                        position: 'right',
+                        formatter: '{c}',
+                        color: '#fff'
+                    }
+                }]
+            });
+
+            // Referral Sources - Nightingale Rose Chart
+            charts.referral = echarts.init(document.getElementById('chartReferral'));
+            charts.referral.setOption({
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c} ({d}%)',
+                    backgroundColor: 'rgba(20, 15, 10, 0.95)',
+                    borderColor: '#ff8c00',
+                    textStyle: { color: '#fff' }
+                },
+                legend: {
+                    show: true,
+                    orient: 'vertical',
+                    right: 10,
+                    top: 'center',
+                    textStyle: { color: '#fdba74' }
+                },
+                series: [{
+                    name: '推荐来源',
+                    type: 'pie',
+                    radius: [30, 100],
+                    center: ['40%', '50%'],
+                    roseType: 'area',
+                    itemStyle: {
+                        borderRadius: 5,
+                        borderColor: '#0f0a05',
+                        borderWidth: 3
+                    },
+                    label: {
+                        show: true,
+                        color: '#fff',
+                        formatter: '{b}\n{c}',
+                        fontSize: 11
+                    },
+                    emphasis: {
+                        label: { fontSize: 13, fontWeight: 'bold' },
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    },
+                    data: data.referrals.map((item, idx) => ({
+                        ...item,
+                        itemStyle: {
+                            color: referralColors[idx].color,
+                            opacity: item.value <= 2 ? 1 : 0.9,
+                            borderWidth: item.value <= 2 ? 4 : 3,
+                            borderColor: item.value <= 2 ? '#fff' : '#0f0a05'
+                        }
+                    }))
+                }]
+            });
+
+            // Programs Sunburst
+            charts.programs = echarts.init(document.getElementById('chartPrograms'));
+            charts.programs.setOption({
+                backgroundColor: 'transparent',
+                tooltip: {
+                    backgroundColor: 'rgba(20, 15, 10, 0.95)',
+                    borderColor: '#ff8c00',
+                    textStyle: { color: '#fff' }
+                },
+                series: [{
+                    type: 'sunburst',
+                    data: [
+                        {
+                            name: '标准团队建设',
+                            value: 80,
+                            itemStyle: { color: '#ff8c00' },
+                            children: [
+                                { name: '标准版', value: 50, itemStyle: { color: '#ffb700' } },
+                                { name: '简单版', value: 30, itemStyle: { color: '#ffa500' } }
+                            ]
+                        },
+                        {
+                            name: '领导力工作坊',
+                            value: 50,
+                            itemStyle: { color: '#ff9500' }
+                        },
+                        {
+                            name: '实验性项目',
+                            value: 9,
+                            itemStyle: { color: '#ff6b00' },
+                            children: [
+                                { name: 'Dine', value: 3, itemStyle: { color: '#ff7f00' } },
+                                { name: 'Concert', value: 2, itemStyle: { color: '#ff6347' } },
+                                { name: 'Run', value: 2, itemStyle: { color: '#ff4500' } },
+                                { name: 'Journey', value: 2, itemStyle: { color: '#ff8c00' } }
+                            ]
+                        }
+                    ],
+                    radius: [0, '90%'],
+                    label: { rotate: 'radial', color: '#fff' }
+                }]
+            });
+
+            // Matrix Scatter
+            charts.matrix = echarts.init(document.getElementById('chartMatrix'));
+            updateMatrix('enterprise');
+        }
+
+        function updateMatrix(type) {
+            const matrixData = data.matrix[type];
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function(params) {
+                        const d = params.data;
+                        let html = `<div style="padding: 8px;">
+                            <div style="font-weight: bold; margin-bottom: 4px; color: #ffb700;">${d.name}</div>
+                            <div style="font-size: 12px; color: #fdba74;">客户数: ${d.size} (${(d.size/154*100).toFixed(1)}%)</div>
+                            <div style="font-size: 12px; color: #9ca3af;">示例: ${d.examples.join(', ')}</div>
+                        </div>`;
+                        return html;
+                    },
+                    backgroundColor: 'rgba(20, 15, 10, 0.95)',
+                    borderColor: '#ff8c00',
+                    borderWidth: 1,
+                    textStyle: { color: '#fff' }
+                },
+                grid: { top: 40, right: 40, bottom: 40, left: 40 },
+                xAxis: {
+                    type: 'value',
+                    name: '团队建设 ← → 领导力工作坊',
+                    nameLocation: 'middle',
+                    nameGap: 30,
+                    min: 0,
+                    max: 100,
+                    axisLine: { lineStyle: { color: '#4a3728' } },
+                    splitLine: { lineStyle: { color: '#2a1f15', type: 'dashed' } },
+                    axisLabel: { show: false }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '简单版 ← → 实验主题',
+                    nameLocation: 'middle',
+                    nameGap: 40,
+                    min: 0,
+                    max: 100,
+                    axisLine: { lineStyle: { color: '#4a3728' } },
+                    splitLine: { lineStyle: { color: '#2a1f15', type: 'dashed' } },
+                    axisLabel: { show: false }
+                },
+                series: [{
+                    type: 'scatter',
+                    symbolSize: function(val) {
+                        return Math.max(Math.sqrt(val[2]) * 8, 15);
+                    },
+                    data: matrixData.map(item => ({
+                        name: item.name,
+                        value: [item.x, item.y, item.size],
+                        ...item,
+                        itemStyle: {
+                            color: new echarts.graphic.RadialGradient(0.4, 0.3, 1, [
+                                { offset: 0, color: '#ffb700' },
+                                { offset: 1, color: '#ff8c00' }
+                            ]),
+                            shadowBlur: 20,
+                            shadowColor: 'rgba(255, 140, 0, 0.5)'
+                        }
+                    })),
+                    label: {
+                        show: true,
+                        formatter: '{b}',
+                        position: 'top',
+                        color: '#fff',
+                        fontSize: 11
+                    }
+                }],
+                graphic: [
+                    {
+                        type: 'text',
+                        left: '5%',
+                        top: '50%',
+                        style: {
+                            text: '简单版',
+                            fill: '#9ca3af',
+                            fontSize: 12
+                        }
+                    },
+                    {
+                        type: 'text',
+                        left: '45%',
+                        top: '5%',
+                        style: {
+                            text: '实验主题',
+                            fill: '#9ca3af',
+                            fontSize: 12
+                        }
+                    },
+                    {
+                        type: 'text',
+                        right: '5%',
+                        top: '50%',
+                        style: {
+                            text: '领导力工作坊',
+                            fill: '#9ca3af',
+                            fontSize: 12
+                        }
+                    },
+                    {
+                        type: 'text',
+                        left: '45%',
+                        bottom: '5%',
+                        style: {
+                            text: '团队建设',
+                            fill: '#9ca3af',
+                            fontSize: 12
+                        }
+                    }
+                ]
+            };
+            charts.matrix.setOption(option);
+        }
+
+        function switchMatrix(type) {
+            currentMatrix = type;
+            document.querySelectorAll('.matrix-tab').forEach(btn => {
+                btn.classList.remove('active', 'bg-gradient-to-r', 'from-orange-600', 'to-amber-600', 'text-white', 'shadow-lg', 'shadow-orange-900/50');
+                btn.classList.add('bg-white/5', 'text-orange-200/60', 'border', 'border-orange-500/20');
+            });
+            event.target.classList.remove('bg-white/5', 'text-orange-200/60', 'border', 'border-orange-500/20');
+            event.target.classList.add('active', 'bg-gradient-to-r', 'from-orange-600', 'to-amber-600', 'text-white', 'shadow-lg', 'shadow-orange-900/50');
+            updateMatrix(type);
+        }
+
+        function resetDashboard() {
+            Object.values(charts).forEach(chart => {
+                chart.dispatchAction({ type: 'restore' });
+            });
+        }
+
+        // Responsive
+        window.addEventListener('resize', () => {
+            Object.values(charts).forEach(chart => chart.resize());
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', initCharts);
+    </script>
+</body>
+</html>
